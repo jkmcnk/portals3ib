@@ -1,0 +1,17 @@
+
+Except for very special cases (like portals3.h), DO NOT include
+header files from other header files.  Instead, only include
+header files from source (.c) files.  The reasons for this are:
+  1) it eliminates the possibility of circular include problems
+       (a.h includes b.h includes c.h includes a.h).
+  2) it reduces the possiblity of needing to include half the
+       world to get a single declaration.
+
+The default coding style for this tree is that of the Linux kernel.
+In particular, tabs are always 8 spaces.  Always.
+
+See Documentation/CodingStyle from your favorite Linux kernel source
+tree for details.
+
+Note that there is code formatted in previous styles in this tree.
+Nevertheless, follow the Linux kernel coding style.

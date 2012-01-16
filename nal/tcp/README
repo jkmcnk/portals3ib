@@ -1,0 +1,24 @@
+TCP NAL
+
+We read these environment variables to tell us about our identity.
+
+Required:
+  PTL_IFACE  - String identifing interface, e.g. myri0, eth1, etc.
+
+Optional:
+  PTL_PID2PORT_FILE - Path to file containing pid -> IP port map for
+	well-known (fixed) pids.  The file should contain lines with
+	"<pid> <port>" on each line, for each well-known pid.  
+	File name defaults to ./map_pid2port.
+  PTL_DEF_PORTLIST - List of TCP ports, colon separated, to seach when
+	connecting to a pid that is not in the list of well-known pids.
+
+Entries for the default port list only need to be specified if the 
+compiled-in values are insufficient/innappropriate for some reason.
+If any default port values are specified via PTL_PID2PORT_FILE or
+PTL_DEF_PORTLIST, the compiled-in default portlist is overridden.
+
+In this implementation, the nid is the IPV4 address (in host byte
+order) of the interface  (e.g. myri0, eth1, etc.) used to run portals.
+We'll start up connections on demand, so we don't waste resources on
+unused connections. 

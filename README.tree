@@ -1,0 +1,42 @@
+/portals-3.4.0
+  /include
+    /portals3.h
+		The only include file an application should need to
+		include directly to use the Portals 3 library.
+	/p3nal_*.h
+		There should be an include file for each NAL the 
+		implementation supports.  An application can include
+		as many of these as desired; it is OK to include more
+		than one.  The first one included defines the default
+		NAL.
+	/p3api
+		Includes used to define and implement the Portals 3 API.
+	/p3lib
+		Includes used to define and implement the Portals 3 library.
+	/p3rt
+		Includes used to define and implement the Portals runtime
+		environment.  E.g., code to support process rank and
+		process group size is part of the runtime.
+	/p3
+		Includes used to define things common to the Portals 3
+		API and library, e.g., error codes, descriptor format.
+  /p3common
+        Source files for functionality shared between the API and
+        library.
+  /p3api
+		Source files used to implement the Portals 3 API.
+  /p3lib
+		Source files used to implement the Portals 3 library.
+  /p3rt
+        Source files used to implement the runtime library.
+  /nal
+		Multiple NAL implementations live here.  There is a
+		subdirectory for each NAL supported by the implementation.
+    /tcp
+		This directory has code that implements the UTCP NAL.
+    /ibng
+		This directory has code that implements the IBNG NAL.
+      /mad-proxy
+        This directory has code that implements the MAD proxy for
+        the IBNG NAL (either embedded in the NAL itself, or as a
+        standalone daemon process that the NAL communicates with).

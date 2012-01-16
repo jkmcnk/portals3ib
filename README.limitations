@@ -1,0 +1,19 @@
+Platform limitations:
+
+  This implementation has has been tested on i386 and AMD x86_64
+  architectures, however, the IBNG NAL has only been tested on an
+  x86_64 architecture.
+
+Interoperability limitations:
+
+  No work has been done to ensure interoperability between i386 and x86_64.
+  Explicitly-sized types are used in all Portals and NAL header data on
+  the wire, but since the headers may get different alignment with
+  different compilers, there may be data mismatch.
+
+  Also, if interoperability is ever added, I would prefer not to use
+  network byte order.  Since the most common platforms are little-endian,
+  I would prefer that big-endian platforms pay the price for conversion
+  to a standard byte order.  Thus, I would prefer that wire byte order
+  for Portals header data be little-endian, and that big-endian platforms
+  be detected at build time so they can byte-swap wire header data.
