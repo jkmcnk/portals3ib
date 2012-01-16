@@ -1,0 +1,184 @@
+
+This reference Portals runtime implementation provides the same
+runtime API for both user-space and kernel-space Portals libraries.
+When the Portals library runs in kernel space, the runtime
+implementation allows only a privleged process to set PID or JID to
+a specific value during Portals initialization.
+
+This runtime implementation has support for Portals processes
+accessing multiple network interfaces.  It supports membership in
+multiple process groups, with a different group on each initialized
+interface.  Thus, group (rank, size, NID map, PID map) may be
+different on each interface.
+
+Also, the Portals 3.3 specification calls for the library to
+optionally support a job identifier, (ptl_jid_t), but calls for a
+process JID to be assigned by the runtime system.  To that end, this
+runtime has a method to set the job identifier:
+
+int PtlSetJID(ptl_jid_t jid)
+
+Process group membership for a Portals process is set/queried via the
+following methods:
+
+int PtlSetRank(ptl_handle_ni_t ni_handle, ptl_rid_t rank, unsigned group_size)
+int PtlSetNIDMap(ptl_handle_ni_t ni_handle, ptl_nid_t *map, unsigned map_size)
+int PtlSetPIDMap(ptl_handle_ni_t ni_handle, ptl_pid_t *map, unsigned map_size)
+
+int PtlGetRank(ptl_handle_ni_t ni_handle,
+			ptl_rid_t *rank, unsigned *group_size)
+int PtlGetRankId(ptl_handle_ni_t ni_handle,
+			ptl_rid_t rank, ptl_process_id_t *id)
+
+Before any of these methods are called, the Portals library must have
+been initialized via a call to PtlInit().
+
+The "set" methods may be called either before or after calls to
+PtlNIInit().
+
+If called before PtlNIInit(), then PTL_INVALID_HANDLE must be supplied
+for <ni_handle>.  (We really want PTL_HANDLE_ANY, but the spec doesn't
+define such a value.)  In this case the values supplied by the "set"
+methods will apply to the next interface initialized by PtlNIInit.
+Furthemore, if PTL_PID_ANY is specified in the PtlNIInit call, then
+the PID will be determined from the rank and PID map specified in the
+previous "set" calls.
+
+If the "set" methods are called after PtlNIInit, then a valid network 
+interface handle must be supplied for <ni_handle>.
+
+Detailed specification of each method follows.
+
+-----
+
+int PtlSetJID(ptl_jid_t jid)
+
+Use PtlSetJID to set the Portals job identifier for a process.
+PtlInit must be called before calling PtlSetJID.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	PtlInit has not been called.
+-----
+
+int PtlSetRank(ptl_handle_ni_t ni_handle,
+			unsigned rank, unsigned group_size)
+
+Use PtlSetRank to set the process group size and group rank in the
+job for an interface.  PtlInit must be called before calling PtlSetRank.
+
+If PtlSetRank is called before PtlNIInit, then the values specified in
+PtlSetRank will apply to the next successful PtlNIInit call.  In this
+case <ni_handle> must have the value PTL_INVALID_HANDLE.  
+
+If PtlSetRank is called after PtlNIInit, then <ni_handle> must be a 
+valid network interface handle. 
+
+If called with rank and size set to -1, PtlSetRank causes the rank,
+job size, job id, and NID/PID maps to be initialized from the following
+environment variables:
+
+  PTL_MY_RID - Specifies process group rank.  If not present, the RID
+	value is set to (ptl_rid_t)-1, and the group size is set to zero.
+  PTL_NIDMAP - Ordered list of NIDs for processes in my n-node group,
+	for rid 0 -> n-1, colon separated.
+  PTL_PIDMAP - Ordered list of PIDs for processes in my n-node group,
+	for rid 0 -> n-1, colon separated.
+  PTL_MY_JID - If present, specifies my jid; otherwise, initialized to
+	same value as my pid.
+
+Note that the environment variable option is only useful for a process
+using a single interface.  Consistency checking is as for explicit
+calls to PtlSetNIDMap/PtlSetPIDMap, as described below.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	PtlInit/PtlSetRank have not been called.
+	PTL_NI_INVALID	<ni_handle> is neither PTL_INVALID_HANDLE, nor
+			  a valid handle obtained via PtlNIInit.
+	PTL_FAIL	Map NID does not match interface NID, or
+			  NID map already initialized, or rank already
+			  initialized.
+	PTL_PID_INVALID	Map PID does not match interface PID, or
+			  PID map already initialized.
+
+-----
+
+int PtlSetNIDMap(ptl_handle_ni_t ni_handle,
+			ptl_nid_t *map, unsigned map_size)
+
+Use PtlSetNIDMap to set the process group NID map for an interface.
+PtlInit and PtlSetRank must be called before calling PtlSetNIDMap.
+
+If PtlSetNIDMap is called before PtlNIInit, then the values specified
+in PtlSetNIDMap will apply to the next successful PtlNIInit call.  In
+this case <ni_handle> must have the value PTL_INVALID_HANDLE.
+PtlNIInit will fail with PTL_FAIL if the interface NID does not match
+to the NID inferred from the process group rank and NID map.
+
+If PtlSetNIDMap is called after PtlNIInit, then <ni_handle> must be a
+valid network interface handle. PtlSetNIDMap will fail with PTL_FAIL if
+the NID inferred from the process group rank and NID map does not
+match the interface NID.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	PtlInit has not been called.
+	PTL_NI_INVALID	<ni_handle> is neither PTL_INVALID_HANDLE, nor
+			  a valid handle obtained via PtlNIInit.
+	PTL_FAIL	Map NID does not match interface NID.
+
+-----
+
+int PtlSetPIDMap(ptl_handle_ni_t ni_handle,
+			ptl_pid_t *map, unsigned group_size)
+
+Use PtlSetPIDMap to set the process group PID map for an interface.
+PtlInit and PtlSetRank must be called before calling PtlSetPIDMap.
+
+If PtlSetPIDMap is called before PtlNIInit, then the values specified
+in PtlSetPIDMap will apply to the next successful PtlNIInit call.  In
+this case <ni_handle> must have the value PTL_INVALID_HANDLE.  If the
+PtlNIInit call specifies PTL_PID_ANY, then the PID will be determined
+from the group rank and PID map.  Otherwise, PtlNIInit will fail with
+PTL_PID_INVALID if the PID supplied to PtlNIInit does not match
+the PID inferred from the process group rank and PID map.
+
+If PtlSetPIDMap is called after PtlNIInit, then <ni_handle> must be a
+valid network interface handle. PtlSetPIDMap will fail with
+PTL_PID_INVALID if the PID inferred from the process group rank and
+PID map does not match the interface PID.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	PtlInit/PtlSetRank have not been called.
+	PTL_NI_INVALID	<ni_handle> is neither PTL_INVALID_HANDLE, nor
+			  a valid handle obtained via PtlNIInit.
+	PTL_PID_INVALID	Map PID does not match interface PID.
+
+-----
+
+int PtlGetRank(ptl_handle_ni_t ni_handle,
+			unsigned *rank, unsigned *group_size)
+
+Use PtlGetRank to query the group size and rank in group for a Portals
+process accessing a group via the interface specified by <ni_handle>.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	PtlSetRank has not been called.
+	PTL_NI_INVALID	<ni_handle> does not reference a valid interface.
+
+-----
+
+int PtlGetRankId(ptl_handle_ni_t ni_handle,
+			unsigned rank, ptl_process_id_t *id)
+
+Use PtlGetRankId to query the Portals process for the process with
+specified rank in the group accessible via the interface specified by
+<ni_handle>.
+
+Return value:
+	PTL_OK		Success.
+	PTL_NO_INIT	No NID/PID entries in maps for <rank>.
+	PTL_NI_INVALID	<ni_handle> does not reference a valid interface.

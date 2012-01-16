@@ -1,0 +1,28 @@
+Here is a short description of the available NALs:
+
+utcp
+
+    This is a pure user-space NAL using TCP as the transport.  It
+	is completely asynchronous, and is programmed using all 
+	non-blocking socket calls.
+
+IBNG
+
+    This is a pure user-space NAL using IB as the transport via the
+	verbs interface.
+
+Both NALs will use a separate progress thread if Portals are configured
+as multithreaded (--enable-threaded-lib), making it	application-bypass.
+
+If a separate progress thread is not configured, the implementation attempts
+to make progress on every outstanding message each time one of PtlPut,
+PtlPutRegion, PtlGet, PtlGetRegion,	PtlGetPut, PtlEQGet, PtlEQWait, or
+PtlEQPoll is called.
+
+Also note that in the multithreaded case, fork() should be used with
+care. The child processes may *not* use the Portals library anymore, as
+the fork() call only clones the calling thread, leaving the child process
+without the progress thread.
+
+Refer to the individual NAL README files for further details on NAL-specific
+configuration.

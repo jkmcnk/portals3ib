@@ -1,0 +1,4 @@
+1. cater to multiple IB ports on a single device for CM connections
+2. randomization of PSNs
+3. use an SRQ?
+4. UD-RC hybrid model for constant memory usage?

@@ -1,0 +1,92 @@
+This is an all-user-space implementation of the Portals 3 specification,
+based on the reference Portals 3 implementation from Sandia National
+Laboratories (http://www.cs.sandia.gov/Portals/).
+
+In contrast to the original implementation, this one explicitly does not
+support the API, the library and the NAL part execution in different address
+spaces. All three parts of the Portals code live in user space.
+
+Apart from the original demo user space TCP NAL, this implementation
+provides a (rather) high-performance Infiniband NAL using RC Queue Pairs
+and supporting both CM (for systems with no TCP/IP stack) and CMA (aka RDMA
+CM) connection establishment methods. Refer to README.nals for further
+information.
+
+Any application that uses this Portals implementation should include
+portals3.h to gain access to the Portals type definitions and API prototypes.
+
+Since this implementation is designed around the NAL concept, and allows
+a single application to use multiple NAL types simultaneously, there is
+an include file for each NAL type provided by the implementation.  These
+include files will always be named p3nal_<type>.h, where <type> is a
+string descriptive of the NAL type.  These include files are constructed
+such that the first to be included will define PTL_IFACE_DEFAULT.  Every
+p3nal include file will also define PTL_IFACE_<nal-type>, where
+<nal-type> is descriptive of the NAL type.  Thus all NAL types can be
+made available under application control, but PTL_IFACE_DEFAULT is
+easily and always defined on an individual application basis.
+
+Thus, an application wishing to use this implementation must include
+portals3.h, and at least one p3nal_<type>.h file.
+
+Each NAL should provide a README in its part of the source tree which
+describes the details of how an application makes use of that NAL.
+
+The declarations of the Portals types as described in the specification
+can be found in p3api/types.h, while function prototypes for the API as
+described in the specification can be found in p3api/api.h.
+Documentation of API details specific to this implementation can be
+found in p3api/misc.h.  Documentation of debugging features specific to
+this implementation can be found in p3api/debug.h.
+
+The Portals 3.3 specification has no support for the concept of rank,
+which is usually provided by layers higher in the software stack.
+However, as an aid to developers who wish to work with Portals
+applications that need the concept of rank, (and frankly, to make it
+easier to write Portals test programs) this implementation provides a
+simple run-time library that provides support for rank.  The API for
+this library is specified in p3rt/p3rt.h.
+
+Issues not fully addressed by the Portals 3.3 specification:
+
+1) PtlEQAlloc called with count = 0; i.e., to create a zero-length
+   event queue.
+
+     A zero-length event queue is useless as an event queue, as it
+     can hold no events.  Thus, all zero length event queues are the
+     same.  Thus, this implementation returns an event queue handle of
+     PTL_EQ_NONE when called with count = 0.  Although the specification
+     does not speak to this case, it does not prohibit this action.
+
+2) PtlMDUpdate called with non-null old_md pointer, when the MD being
+   retrieved has option PTL_MD_IOVEC.
+
+     In this case, the MD being retrieved is variable length, and at 
+     issue is what code is responsible for allocating sufficient memory
+     to hold the MD.  The specification is silent on this issue.
+
+     This implementation adds the following restrictions in this case:
+     PTL_MD_IOVEC must be set in the options for the MD pointed to by
+     old_md.  old_md->start must point to memory sufficient to hold an
+     iovec of length old_md->length.  Then, up to old_md->length entries
+     of the MD being retrieved with the PtlMDUpdate call will be copied
+     into old_md->start.
+
+     Note that in this case there is still some ambiguity as to whether
+     to leave old_md->start unaltered (and holding the address of the 
+     memory the iovec is being retrieved into), or to overwrite its
+     value with the value from the MD being retrieved (i.e,, the address
+     of the original iovec).
+
+     It is similarly ambiguous in this case whether to leave 
+     old_md->length unaltered, or to overwrite its value with the
+     value from the MD being retrieved.
+
+     This implementation uses the second option in both cases. This 
+     allows the retrieval of an MD without knowing a priori whether
+     it uses PTL_MD_IOVEC: retrieve it once assuming it does not,
+     check the options of the retrieved MD, and retrieve it again
+     with old_md->start pointing to a suitable buffer if it does
+     use PTL_MD_IOVEC.  In this case the caller is responsible for
+     maintaining a local copy of old_md->start and old_md->length
+     in order to access the returned iovec correctly.

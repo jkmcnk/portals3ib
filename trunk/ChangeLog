@@ -1,0 +1,296 @@
+2006-Jan-25
+	3.3.2-2 fixed the following bugs in 3.3.2-1:
+
+	- A locking bug allowed adding to the send queue to race with 
+	    removing the last entry, so that the queue looked empty 
+	    even though it wasn't.
+	- The non-blocking connect in __p3tcp_connect() adds a file
+	    descriptor into the fd_set objects tracking connections, so 
+	    we'd better use the updated instances or we may block in 
+	    select() without noticing the connect has completed.
+	- If a well-known PID is requested and available, be sure to
+	    return it.
+	
+2006-Jan-13
+	3.3.2-1 fixed the following in 3.3.2-0
+
+	- A warning about an uninitialized variable, noticed by gcc 4.0.
+	- Several warnings about signed/unsigned pointer mismatch,
+	    noticed by gcc 4.0.
+
+2006-Jan-11
+	3.3.2-0 fixed the following bugs in 3.3.1-1
+
+	- PtlGetPut was not atomic.
+	- Dropped event notification was broken.
+	- Event sequence number wrapping was broken.
+	- lib_PtlMDUpdate had a memory leak for the PTL_MD_NO_UPDATE case.
+	- include/p3/nal_types.h was not being installed by
+	    "make install".
+	- ptl_specific_obj_alloc() would segfault when asked to allocate
+	    an already allocated object, rather than return an error.
+
+	3.3.2-0 has significant enhancements vs. 3.3.1-1:
+
+	- The Portals library can now be built for either kernel-space
+	    or user-space.  Linux 2.6 kernels are supported, and the 
+	    kernel-space version has been tested on x86_64 (Opteron) 
+	    and i386.  The build tools support separate kernel source 
+	    and build trees.
+	- The TCP NAL can now be built for either kernel-space or
+	    user-space (UTCP NAL), and the two versions can interoperate.
+	- There is now a memory validation service provided by the
+	    library, which NALs can make use of if desired.
+	- The library provides a service to NALs to track in-use Portals
+	    process ID values, so each NAL doesn't need to have its own
+	    code for this purpose.
+	- The runtime library, which is not part of the Portals spec, 
+	    now has functions to set rank, Portals process ID, etc.
+	    The environment variables used by the UTCP NAL in previous
+	    versions are still supported.
+
+2005-May-11
+	3.3.1-1 fixed the following bugs:
+	
+	- PTL_EQ_NONE is a ptl_handle_eq_t, i.e., a handle value, not
+	    a return code.  Fix the brain damage introduced in 3.3.0-12
+	    for a PtlEQAlloc called for a zero length event queue.
+	- A ptl_uid_t value is specifically allowed to depend on the
+	    network interface by the Portals 3.3 specification.  So,
+	    the ptl_uid_t value must be a member of a ptl_ni_t, not
+	    a p3_process_t.
+	- Fix VPATH build for UTCP NAL, which wasn't able to find
+	    user/p3-config.h.
+	
+2005-May-11
+	3.3.1-0 has significant enhancements vs. 3.3.0-12.  These
+	enhancements were made to solve a race condition between the
+	UTCP NAL progress thread (when configured) and PtlMDUpdate,
+	and to prepare for the first kernel-space NAL.
+
+	The changes are as follows:
+
+	- In 3.3.0 a lib_nal_t (library NAL object) held a lib_ni_t
+	    (library network interface object), which held the NID, PID,
+	    etc., of the interface user.  This is exactly backwards.
+
+	    In 3.3.1 there's a new object, p3_process_t, which holds
+	    the NID, PID, UID of the process, and an array of network
+	    interface objects, each of which holds a NAL object.
+
+	    Then, ./user has code to create a p3_process_t object
+	    appropriately when the library is built for user-space,
+	    and ./kern will have code to associate a p3_object_t with
+	    a linux process when the library is built for kernel space.
+
+	- In 3.3.0 a NAL had to know what was in a Portals message header,
+	    so it could extract a PID if needed.  This violates the
+	    layering principle that NALs shouldn't need to know anything
+	    about the Portals information they're pulling off the wire;
+	    only the library needs to know that.
+
+	    In 3.3.1, lib_parse() is now responsible for cracking the
+	    Portals header pulled off the wire and passed to it by the NAL.
+
+	- 3.3.1 has locking primitives, and uses them as appropriate in
+	    the library to protect critical code regions at a medium
+	    level of granularity.  There is a per-NI object allocation
+	    lock, which should be held whenever an object is allocated
+	    or freed to service an operation on an NI.  There is a per-NI
+	    object update lock, which should be held whenever an object
+	    is updated to service an operation on an NI.  Finally, there
+	    is a global lock to protect any other critical operations.
+
+	    ./user has code to implement these locks as pthreads mutexes,
+	    in the event the library is compiled for user space.  ./kern 
+	    has code to implement these locks as linux kernel spinlocks,
+	    in the event the library is compiled for kernel space.
+
+	    Thus, the Portals library is now thread-safe when compiled
+	    for user space, and is SMP-safe when compiled for kernel
+	    space.  See README.locking for more information.
+
+	- As a result of the above changes, the default for the user-space
+	    TCP (UTCP) NAL is now to use a progress thread.  You can
+	    recover the old single-threaded behavior with
+	        configure --disable-threaded-library
+
+	    Also, the test programs that used PtlMDUpdate didn't allow
+	    for a PTL_MD_NO_UPDATE return code.  Now they do.
+	    Furthermore, they used PtlMDUpdate in a manner that was
+	    inherently racy.  Now they don't.
+
+	- In 3.3.0 each NAL had to implement its own request-forwarding
+	    mechanism.  This is silly, as request forwarding depends 
+	    more on what spaces the API and library live in, and less
+	    on what type of NAL is used.
+
+	    3.3.1 contains a generic forwarding mechanism.  ./user has
+	    an implementation for the case when both library and API
+	    are user-space resident.  It will also contain the user-space
+	    side for the case where the API is user-space and the library
+	    is kernel-space.  ./kern will contain the kernel-space side
+	    for the case where the API is user-space and the library
+	    is kernel-space, as well as both sides when both API and
+	    library are kernel resident.
+
+	    As a result of this change, there's not much left of the
+	    API-side NAL.
+	
+	- In 3.3.0, it was possible for a library MD to be silently reused
+	    in the case where an MD that was expecting a reply was
+	    explicitly unlinked before the reply arrived.
+
+	    3.3.1 adds a generation number in the library MD, which is
+	    incremented each time the MD object is allocated.  This makes
+	    it so unlikely that silent MD reuse can occur that it can be
+	    considered impossible.
+
+	- In 3.3.0, the UTCP NAL required that the FILE pointers
+	    utcp_api_out and utcp_lib_out be explicitly set by every
+	    application using the NAL.
+
+	    This brain-damage is gone in 3.3.1; instead, when the library 
+	    is compiled for user-space, there is a FILE pointer p3_out
+	    that controls where debug output goes.  By default it is
+	    stderr, so an application only need override it if stderr
+	    isn't suitable.
+	    
+2005-May-10
+	3.3.0-12 fixed the following bugs:
+
+	- PtlMEAttachAny was really only doing PtlMEAttach, and was doing
+	    it incorrectly at that.
+	- Lots of functions were incorrectly returning PTL_NI_INVALID,
+	    rather than the status required by the spec.
+	- PtlEQAlloc could create a zero-length event queue, which caused
+	    fault when it tried to use it.  Although the spec is silent
+	    on what should happen when PtlEQAlloc is called with a zero
+	    length, more graceful behavior is called for, so I return
+	    PTL_EQ_NONE in that case now.
+
+2005-Apr-13
+	3.3.0-11 fixed the following bugs:
+
+	- The UTCP NAL is designed to use only one connection between each
+	    pair of processes.  When two processes that haven't communicated
+	    before attempt simultaneously to send to each other, there is a
+	    race for which connection will survive, and which will be 
+	    dropped as a duplicate.
+
+	    The previous handling of this race was borken; thanks to Ron
+	    Brightwell for generating a test case that was 100% reliable
+	    in triggering the bug when run over the loopback interface.
+	
+	- The test getput_pp.c didn't correctly check for the
+	    implementation-defined limit on the maximum size message to
+	    which PtlGetPut will respond.
+	
+2005-Mar-14
+	3.3.0-10 fixed the following bugs:
+
+	- do_PtlMDUpdate() did not mark the updated MD as active under the 
+	    appropriate conditions.
+	- The UTCP NAL could not send a message to itself.
+	
+2005-Mar-04
+	3.3.0-9 has the following changes:
+
+	- Added extra initialization of internal library objects. It's
+	    not strictly necessary for correctness, but it does make life
+	    easier for those who use valgrind to check memory use.
+	
+2005-Mar-03
+	3.3.0-8 fixed the following bugs:
+	
+	- An internal message struct would not be freed when an MD with ACKs 
+	    enabled replied to a PtlPut requesting an ACK.
+	- The event queue handle member name in an MD didn't match the
+	    spec: I used eventq, but it should be eq_handle.
+	- A header include was in the wrong place, preventing the UTCP
+	    NAL from compiling when the progress thread was enabled.
+	- Some documentation required by the specification was added.
+
+2005-Feb-10
+	3.3.0-7 fixed the following bugs:
+	
+	- Library objects were being assigned bogus object ids, which
+	    would cause all sorts of strange behavior.  I'm still amazed 
+	    that _anything_ ran against this library with this bug in it.
+	- The access control entry id for put, get, and friends was
+	    not being stored in the request header, so only ACE id 0 
+	    could be used.
+	- The MD handle of the MD that triggered an event was not
+	    being written into the event before it was delivered.
+	
+2005-Feb-02
+	3.3.0-6 fixed the following bugs:
+
+	- Events weren't being properly delivered for sequential gets
+	    from a single MD:
+
+	    In this implementation, after the Portals library parses the
+	    header and an appropriate match is found, flags in the library
+	    MD are set to control event delivery and unlinking.  That means
+	    that the sequence
+	       parse get 1, match MD x
+	       send reply 1 from MD x
+	       parse get 2, match MD x
+	       send reply 2 from MD x
+	    delivers the correct events, but
+	       parse get 1, match MD x
+	       parse get 2, match MD x
+	       send reply 1 from MD x
+	       send reply 2 from MD x
+	    doesn't, because the second parse steps on MD flags from the
+	    first, and the first reply clears flags intended for the second.
+
+	    The fix puts the flags on the message object used to send the
+	    reply.
+
+2005-Jan-31
+	3.3.0-5 fixed the following bugs:
+
+	- Calling PtlNIInit with PTL_PID_ANY didn't propagate the
+	    assigned NID to the NAL.
+	- Calling PtlACEntry with PTL_PT_INDEX_ANY would return
+	    PTL_PT_INDEX_INVALID.
+	- Data for messages after the first in an MD wouldn't be
+	    sent or received.
+
+2005-Jan-20
+	3.3.0-4 fixed the following bugs:
+
+	- Initiator-side threshold unlink semantics didn't match the
+	    Portals 3.3 specification.
+
+2005-Jan-17
+	3.3.0-3 fixed the following bugs:
+
+	- Unlink events weren't posted properly.
+	- Handle re-use wasn't working properly.
+	- A print statement about the PTL_IFACE environment variable not
+	    being set was using the wrong variable name.
+	- p3api/debug.h wasn't included in a distribution, so users
+	    couldn't access the library/NAL debug functionality.
+
+2005-Jan-06
+	3.3.0-2 fixed the following bugs:
+
+	- "Make install" would put include files in 
+	    <prefix>/include/include.
+
+2005-Jan-05
+	3.3.0-1 fixed the following bugs:
+
+	- The TCP_NODELAY socket option was only being set when library
+	    debugging was configured in.
+	- The UTCP NAL wasn't properly updating its counts off 
+	    in-progress sends and receives.
+
+2004-Oct-25
+	3.3.0:
+	
+	- Alpha release of Portals 3.3 library, API, and user-space TCP NAL.
+
+	

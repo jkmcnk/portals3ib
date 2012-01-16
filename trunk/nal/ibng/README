@@ -1,0 +1,75 @@
+IBNG NAL
+
+The NAL makes use of the following environment variables to configure
+itself.
+
+Required:
+  PTL_IFACE - the IB interface to use. Should be set to the IPoIB IP
+    address of the IB interface to use for communication as a 32-bit
+    unsigned integer value (for CMA connection method, see below), or
+    to the IB device name (for CM connection method).
+
+Optional:
+  IBNG_N_RECV_BUFFERS - number of pre-posted receive buffers
+  IBNG_N_SEND_BUFFERS - initial number of pre-created send buffers; every
+    time the buffer pool is depleted, it will be increased by doubling the
+    number of send buffers.
+  IBNG_BUFFER_SIZE - size of a receive and send buffer: this size should
+    match on both sender and receiver.
+  IBNG_N_RDMA_REQS - initial number of pre-created RDMA requests; every
+    time request pool is depleted, it will be increased by doubling the
+    number of RDMA requests.
+  IBNG_MAX_SEND_WRS - maximum number of pending (i.e. posted, but not yet
+    completed) IB Send Work Requests; any further sends will be stored in
+    a queue, and posted only after number of pending requests falls below
+    this threshold.
+  IBNG_MAX_RECV_WRS - maximum number of pending (i.e. posted, but not yet
+    completed) IB Receive Work Requests; for almost all purposes, this
+    should be the same as N_RECV_BUFFERS.
+  IBNG_MAX_RDMA_OUT - maximum number of pending (i.e. posted, but not yet
+    completed) ID RDMA Word Requests; experience shows that on mlx4 HW,
+    this should be kept as low as 2, otherwise failures and retries slow
+    the thing down a lot.
+  IBNG_MAX_INLINE - maximum size of messages to be sent inline; if 0, an
+    appropriate size for the host HW will be determined automatically upon
+    creation of the first QP.
+  IBNG_EAGER_THRESHOLD - maximum size of message to be sent eagerly (i.e. in
+    one or more IB Send messages); larger messages are sent in a rendezvous
+    manner, i.e. with a single IB Send message and a corresponding RDMA read
+    or write.
+
+The optional environment variables have sane defaults. However, to get the
+best performance out of the NAL, they should be carefully tweaked according
+to the communication patterns exhibited by the applications (i.e. large
+transfers mandate use of larger buffers and appropriately set eager
+threshold).
+
+The NAL uses Infiniband RC queue pairs for communication. An RC QP is
+set up for every peer that is communicated with, along with a number of
+pre-allocated and pre-pinned communication buffers, which *does not*
+scale well in case of one-to-all communication in large clusters. This
+could be amended by using a hybrid UD-RC QP approach similar to the
+one used in MVAPICH-Aptus (ref. Koop, M. J., Jones, T., Panda, D. K.:
+MVAPICH-Aptus: Scalable high-performance multi-transport MPI over
+Infiniband. In: Proceedings of IPDPS 2008). The actual amount of memory
+per connection is a function of buffer size and number of buffers.
+
+Connections may be established by one of two methods (selected during
+build time, see configure option --with-ibng-connection-method):
+  CM - use IB CM protocol to establish a connection. As this requires
+    using MAD API, the application must either run with privileges
+    required to access MAD device (usually root), if the MAD functionality
+    is embedded in the Portals themselves (by means of
+    --enable-ibng-embedded-mad configure options), or a separate mad proxy
+    daemon with sufficient privileges should run on the computer (built
+    as part of Portals when embedded MAD is not configured). This method
+    is primarily aimed at lightweight systems with no IPoIB and TCP/IP stack,
+    such as the Kitten Lightweight Kernel.
+  CMA - use CMA aka RDMA CM protocol to establish a connection. This is the
+    preferred method to use on a Linux system, as it requires no special
+    privileges or daemons.
+
+Physical data pages are pinned by the IB libraries, which may disable
+use of system() and fork() while portals are running, unless
+ibv_fork_init() call is made by the application, or environment variable
+IBV_FORK_SAFE is set.

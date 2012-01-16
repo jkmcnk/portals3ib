@@ -1,0 +1,4 @@
+option "count"   - "The number of messages to send/recive" int default="1" optional
+option "server"  - "A flag that identifies this process as a server" flag off
+option "server-pid"  - "The process ID of the server" longlong default="98" optional
+option "server-nid"  - "The node ID of the server" longlong default="0" optional

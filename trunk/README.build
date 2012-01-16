@@ -1,0 +1,10 @@
+The build system uses the GNU autoconf and GNU automake tools.
+
+You need to select at least one NAL when building the Portals library.
+
+VPATH configures are also supported, so you can configure/build in
+a directory other than the top of the source tree.  This allows you
+to build multiple architectures simultaneously from a single source
+tree.  See the GNU autoconf documentation for more information.
+
+Use "./configure --help" to see the current configuration options.
