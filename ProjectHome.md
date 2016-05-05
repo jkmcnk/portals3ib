@@ -1,0 +1,1 @@
+This project is a user-space only portals http://www.cs.sandia.gov/Portals/ implementation. The focus was on providing a simpler programming model for using Infiniband for system software.
